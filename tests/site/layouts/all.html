@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="{{ site.Language.Locale }}">
+<head>
+<title>{{ .Title }}</title>
+<meta name="description" content="{{ .Description }}">
+<link rel="canonical" href="{{ .Permalink }}">
+</head>
+<body>
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+{{ range .Pages }}<a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+{{ end }}
+</body>
+</html>

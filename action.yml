@@ -1,0 +1,78 @@
+name: Hugo upgrade check
+description: Build a Hugo project with its current and a newer Hugo release, and report what the upgrade changes in the published site.
+author: Amperis Products S.L.
+branding:
+  icon: git-pull-request
+  color: blue
+
+inputs:
+  source:
+    description: Project directory.
+    default: "."
+  current:
+    description: Hugo version the project uses now. Detected from the project when empty.
+    default: ""
+  target:
+    description: Hugo version to test, or "latest" for the latest stable release.
+    default: latest
+  build-args:
+    description: Extra arguments for "hugo build", for example "--minify --gc".
+    default: ""
+  output:
+    description: Directory for report.md, report.json, differences.csv and the build logs.
+    default: hugo-upgrade-check
+  fail-on:
+    description: Fail the step on "failure" (a build fails), "differences" (any difference), or "never".
+    default: failure
+  max-html-changed:
+    description: Fraction of HTML pages allowed to change before the result is "differences".
+    default: "0"
+  extended:
+    description: Use the extended edition for Hugo versions before 0.170.0.
+    default: "true"
+  github-token:
+    description: Token for the GitHub API (release notes). The default avoids rate limits.
+    default: ${{ github.token }}
+
+outputs:
+  result:
+    description: up-to-date, identical, differences or build-failed.
+    value: ${{ steps.check.outputs.result }}
+  current:
+    description: Hugo version the project uses now.
+    value: ${{ steps.check.outputs.current }}
+  target:
+    description: Hugo version tested.
+    value: ${{ steps.check.outputs.target }}
+  update-available:
+    description: true when the target version is newer than the current one.
+    value: ${{ steps.check.outputs.update_available }}
+  report:
+    description: Path of the Markdown report.
+    value: ${{ steps.check.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Pillow for the visual image check
+      shell: bash
+      run: python3 -m pip install --quiet --disable-pip-version-check pillow || echo "Pillow not installed; images are compared by bytes only"
+    - name: Compare builds
+      id: check
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        HUC_SOURCE: ${{ inputs.source }}
+        HUC_CURRENT: ${{ inputs.current }}
+        HUC_TARGET: ${{ inputs.target }}
+        HUC_BUILD_ARGS: ${{ inputs.build-args }}
+        HUC_OUTPUT: ${{ inputs.output }}
+        HUC_FAIL_ON: ${{ inputs.fail-on }}
+        HUC_MAX_HTML: ${{ inputs.max-html-changed }}
+        HUC_EXTENDED: ${{ inputs.extended }}
+      run: |
+        args=(--source "$HUC_SOURCE" --target "$HUC_TARGET" --output "$HUC_OUTPUT"
+              --fail-on "$HUC_FAIL_ON" --max-html-changed "$HUC_MAX_HTML" "--build-args=$HUC_BUILD_ARGS")
+        if [ -n "$HUC_CURRENT" ]; then args+=(--current "$HUC_CURRENT"); fi
+        if [ "$HUC_EXTENDED" != "true" ]; then args+=(--no-extended); fi
+        python3 "$GITHUB_ACTION_PATH/hugo_upgrade_check.py" "${args[@]}"

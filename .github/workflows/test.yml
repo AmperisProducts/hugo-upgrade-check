@@ -1,0 +1,42 @@
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare the test site between two releases
+        id: check
+        uses: ./
+        with:
+          source: tests/site
+          current: 0.169.0
+          target: 0.170.1
+
+      - name: Check the outputs
+        env:
+          RESULT: ${{ steps.check.outputs.result }}
+          CURRENT: ${{ steps.check.outputs.current }}
+          TARGET: ${{ steps.check.outputs.target }}
+        run: |
+          echo "result=$RESULT current=$CURRENT target=$TARGET"
+          test "$CURRENT" = "0.169.0"
+          test "$TARGET" = "0.170.1"
+          case "$RESULT" in identical|differences) ;; *) exit 1 ;; esac
+          test -s hugo-upgrade-check/report.md
+          test -s hugo-upgrade-check/report.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hugo-upgrade-check
+          path: hugo-upgrade-check/

@@ -1,0 +1,3 @@
+hugo-upgrade-check/
+__pycache__/
+.hugo_build.lock
